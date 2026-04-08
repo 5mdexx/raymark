@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raymark — لوحة التحكم</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --gold:        #D4A853;
+            --gold-light:  #E8C574;
+            --gold-dim:    rgba(212,168,83,0.12);
+            --bg:          #080810;
+            --surface:     #0E0E1A;
+            --surface2:    #141424;
+            --surface3:    #1A1A2E;
+            --border:      rgba(255,255,255,0.07);
+            --border-gold: rgba(212,168,83,0.25);
+            --text:        #E8E8F0;
+            --text-dim:    #7A7A9A;
+            --text-faint:  #3A3A5A;
+            --success:     #3DD68C;
+            --warning:     #F5A623;
+            --danger:      #FF5C5C;
+            --info:        #4B9EFF;
+            --radius:      14px;
+            --radius-sm:   8px;
+            --sidebar-w:   260px;
+            --transition:  0.22s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        html { font-size: 15px; }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Noise overlay ───────────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+            opacity: 0.022;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* ── Sidebar ─────────────────────────────────────────── */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: var(--surface);
+            min-height: 100vh;
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-top {
+            padding: 32px 24px 28px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+
+        .logo-mark {
+            width: 38px;
+            height: 38px;
+            background: var(--gold);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .logo-mark svg { width: 20px; height: 20px; fill: #000; }
+
+        .logo-text { font-size: 22px; font-weight: 900; letter-spacing: 0.5px; color: #fff; }
+        .logo-text span { color: var(--gold); }
+        .logo-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; font-weight: 400; }
+
+        .nav { padding: 16px 12px; flex: 1; }
+
+        .nav-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            padding: 0 12px;
+            margin-bottom: 8px;
+            margin-top: 16px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            border-radius: var(--radius-sm);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all var(--transition);
+            font-size: 14.5px;
+            font-weight: 500;
+            position: relative;
+            user-select: none;
+        }
+
+        .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+
+        .nav-item.active {
+            color: var(--gold);
+            background: var(--gold-dim);
+            font-weight: 700;
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 60%;
+            background: var(--gold);
+            border-radius: 2px 0 0 2px;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
+        .nav-item.active .nav-icon { opacity: 1; }
+
+        .sidebar-footer {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .sidebar-footer p { font-size: 12px; color: var(--text-faint); }
+
+        /* ── Main ────────────────────────────────────────────── */
+        .main {
+            margin-right: var(--sidebar-w);
+            flex: 1;
+            padding: 36px 40px;
+            min-height: 100vh;
+        }
+
+        .page { display: none; animation: pageIn 0.3s ease; }
+        .page.active { display: block; }
+
+        @keyframes pageIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Page Header ─────────────────────────────────────── */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+        }
+
+        .page-title { font-size: 26px; font-weight: 800; color: #fff; }
+        .page-sub { font-size: 13px; color: var(--text-dim); margin-top: 4px; font-weight: 400; }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13.5px;
+            font-weight: 700;
+            font-family: 'Tajawal', sans-serif;
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+
+        .btn-gold {
+            background: var(--gold);
+            color: #000;
+        }
+        .btn-gold:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,168,83,0.3); }
+
+        .btn-ghost {
+            background: var(--surface2);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+        .btn-danger-soft {
+            background: rgba(255,92,92,0.1);
+            color: var(--danger);
+            border: 1px solid rgba(255,92,92,0.2);
+        }
+        .btn-danger-soft:hover { background: rgba(255,92,92,0.18); }
+
+        .btn-sm { padding: 6px 13px; font-size: 12.5px; }
+
+        /* ── Stat Cards ──────────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px 24px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color var(--transition), transform var(--transition);
+        }
+
+        .stat-card:hover { border-color: var(--border-gold); transform: translateY(-2px); }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 70px; height: 70px;
+            background: radial-gradient(circle at top right, var(--gold-dim), transparent 70%);
+            pointer-events: none;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--gold-dim);
+            border: 1px solid var(--border-gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon svg { width: 18px; height: 18px; stroke: var(--gold); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .stat-label { font-size: 12.5px; color: var(--text-dim); font-weight: 500; margin-bottom: 6px; }
+        .stat-value { font-size: 30px; font-weight: 900; color: #fff; line-height: 1; }
+        .stat-unit { font-size: 14px; color: var(--text-dim); font-weight: 400; }
+
+        /* ── Table Card ──────────────────────────────────────── */
+        .table-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .table-card-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-card-header h3 { font-size: 15px; font-weight: 700; color: #fff; }
+
+        table { width: 100%; border-collapse: collapse; }
+
+        th {
+            padding: 12px 20px;
+            text-align: right;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text);
+            transition: background var(--transition);
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+        /* ── Badges ──────────────────────────────────────────── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 11px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+        .badge-active   { background: rgba(61,214,140,0.1);  color: var(--success); border: 1px solid rgba(61,214,140,0.2); }
+        .badge-active::before { background: var(--success); }
+
+        .badge-pending  { background: rgba(245,166,35,0.1);  color: var(--warning); border: 1px solid rgba(245,166,35,0.2); }
+        .badge-pending::before { background: var(--warning); }
+
+        .badge-inactive { background: rgba(255,92,92,0.1);   color: var(--danger);  border: 1px solid rgba(255,92,92,0.2); }
+        .badge-inactive::before { background: var(--danger); }
+
+        .badge-done     { background: rgba(61,214,140,0.1);  color: var(--success); border: 1px solid rgba(61,214,140,0.2); }
+        .badge-done::before { background: var(--success); }
+
+        .badge-progress { background: rgba(75,158,255,0.1);  color: var(--info);    border: 1px solid rgba(75,158,255,0.2); }
+        .badge-progress::before { background: var(--info); }
+
+        /* ── Search ──────────────────────────────────────────── */
+        .search-wrap { position: relative; }
+
+        .search-input {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 9px 16px 9px 36px;
+            font-size: 13.5px;
+            color: var(--text);
+            font-family: 'Tajawal', sans-serif;
+            outline: none;
+            width: 230px;
+            direction: rtl;
+            transition: border-color var(--transition);
+        }
+
+        .search-input::placeholder { color: var(--text-faint); }
+        .search-input:focus { border-color: var(--border-gold); }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            stroke: var(--text-faint);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* ── Empty State ─────────────────────────────────────── */
+        .empty-state {
+            padding: 56px 24px;
+            text-align: center;
+            color: var(--text-faint);
+        }
+
+        .empty-icon {
+            width: 52px;
+            height: 52px;
+            margin: 0 auto 16px;
+            border-radius: 14px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-icon svg { width: 24px; height: 24px; stroke: var(--text-faint); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+        .empty-state p { font-size: 14px; }
+
+        /* ── Modal ───────────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(6px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 32px;
+            width: 520px;
+            max-width: 92vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+            animation: modalIn 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.94) translateY(10px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-header h3 { font-size: 18px; font-weight: 800; color: #fff; }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition);
+        }
+
+        .modal-close:hover { background: var(--surface3); }
+        .modal-close svg { width: 14px; height: 14px; stroke: var(--text-dim); fill: none; stroke-width: 2.5; stroke-linecap: round; }
+
+        /* ── Form ────────────────────────────────────────────── */
+        .form-group { margin-bottom: 18px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: 0.3px;
+            margin-bottom: 7px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 11px 14px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: 'Tajawal', sans-serif;
+            color: var(--text);
+            outline: none;
+            transition: border-color var(--transition), background var(--transition);
+            text-align: right;
+            direction: rtl;
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder { color: var(--text-faint); }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--border-gold);
+            background: var(--surface3);
+        }
+
+        .form-group select option { background: var(--surface3); }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ── Toast ───────────────────────────────────────────── */
+        .toast-container {
+            position: fixed;
+            bottom: 28px;
+            left: 28px;
+            z-index: 9998;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 13px 18px;
+            font-size: 13.5px;
+            color: var(--text);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            min-width: 240px;
+        }
+
+        .toast.success { border-color: rgba(61,214,140,0.3); }
+        .toast.success .toast-dot { background: var(--success); }
+        .toast.error   { border-color: rgba(255,92,92,0.3); }
+        .toast.error   .toast-dot { background: var(--danger); }
+
+        .toast-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── WhatsApp Link ───────────────────────────────────── */
+        .wa-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--success);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(61,214,140,0.08);
+            transition: background var(--transition);
+        }
+
+        .wa-link:hover { background: rgba(61,214,140,0.15); }
+
+        /* ── Invoice Preview ─────────────────────────────────── */
+        .invoice-preview {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 48px;
+            max-width: 660px;
+        }
+
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 36px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-gold);
+        }
+
+        .invoice-logo { font-size: 28px; font-weight: 900; color: #fff; }
+        .invoice-logo span { color: var(--gold); }
+        .invoice-logo p { font-size: 12px; color: var(--text-dim); margin-top: 4px; font-weight: 400; }
+
+        .invoice-meta { text-align: left; font-size: 13px; color: var(--text-dim); line-height: 2; }
+        .invoice-meta strong { color: var(--text); }
+
+        .invoice-table { width: 100%; margin: 24px 0; border-collapse: collapse; }
+        .invoice-table th {
+            background: var(--gold-dim);
+            color: var(--gold);
+            padding: 12px 16px;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            border: 1px solid var(--border-gold);
+        }
+        .invoice-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); color: var(--text); }
+
+        .invoice-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--gold-dim);
+            border: 1px solid var(--border-gold);
+            border-radius: var(--radius-sm);
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--gold);
+        }
+
+        .invoice-footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-faint);
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        /* ── Divider ─────────────────────────────────────────── */
+        .section-gap { margin-bottom: 20px; }
+
+        /* ── Print ───────────────────────────────────────────── */
+        @media print {
+            .sidebar, .page-header .btn, .btn, #invoice-list-view, body::before { display: none !important; }
+            .main { margin: 0; padding: 20px; }
+            body { background: white; color: black; }
+            .invoice-preview { background: white; border: none; padding: 20px; }
+            .invoice-logo, .invoice-meta strong { color: black; }
+        }
+
+        /* ── Vault Status ────────────────────────────────────── */
+        .vault-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+            font-size: 12.5px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .vault-status:hover { border-color: var(--border-gold); }
+
+        .vault-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            flex-shrink: 0;
+            transition: background var(--transition);
+        }
+
+        .vault-dot.connected { background: var(--success); box-shadow: 0 0 6px rgba(61,214,140,0.5); }
+        .vault-label { color: var(--text-dim); flex: 1; }
+        .vault-label.connected { color: var(--success); }
+
+        /* ── Vault Overlay ───────────────────────────────────── */
+        .vault-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(8,8,16,0.92);
+            backdrop-filter: blur(12px);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .vault-overlay.hidden { display: none; }
+
+        .vault-connect-box {
+            background: var(--surface);
+            border: 1px solid var(--border-gold);
+            border-radius: 20px;
+            padding: 48px;
+            text-align: center;
+            max-width: 460px;
+            width: 90%;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+            animation: modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        .vault-connect-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--gold-dim);
+            border: 1px solid var(--border-gold);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+        .vault-connect-icon svg { width: 28px; height: 28px; stroke: var(--gold); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+        .vault-connect-box h2 { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+        .vault-connect-box p  { font-size: 14px; color: var(--text-dim); line-height: 1.7; margin-bottom: 28px; }
+        .vault-connect-box .hint { font-size: 12.5px; color: var(--text-faint); margin-top: 14px; }
+
+        /* ── Scrollbar ───────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+        /* ── Mobile ──────────────────────────────────────────── */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 500;
+            width: 42px;
+            height: 42px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .menu-toggle svg { width: 18px; height: 18px; stroke: var(--text); fill: none; stroke-width: 2; stroke-linecap: round; }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 99;
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle { display: flex; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .main { margin-right: 0; padding: 20px 16px; padding-top: 72px; }
+            .sidebar { transform: translateX(100%); transition: transform var(--transition); }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.open { display: block; }
+            .page-header { flex-direction: column; gap: 14px; align-items: flex-start; }
+            .search-input { width: 160px; }
+            th, td { padding: 10px 12px; font-size: 13px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+            .stat-value { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Mobile Menu Toggle ───────────────────────────────────── -->
+<button class="menu-toggle" onclick="toggleSidebar()" id="menu-toggle">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ── Sidebar ──────────────────────────────────────────────── -->
+<aside class="sidebar">
+    <div class="sidebar-top">
+        <div class="logo">
+            <div class="logo-mark">
+                <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <div>
+                <div class="logo-text">Ray<span>mark</span></div>
+            </div>
+        </div>
+        <div class="logo-sub">لوحة تحكم الوكالة</div>
+    </div>
+
+    <nav class="nav">
+        <div class="nav-label">القائمة</div>
+
+        <div class="nav-item active" onclick="navigate('dashboard', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+            </svg>
+            <span>الرئيسية</span>
+        </div>
+
+        <div class="nav-item" onclick="navigate('clients', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span>العملاء</span>
+        </div>
+
+        <div class="nav-item" onclick="navigate('tasks', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+            <span>المهام</span>
+        </div>
+
+        <div class="nav-item" onclick="navigate('invoices', this)">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/>
+            </svg>
+            <span>الفواتير</span>
+        </div>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:12px" onclick="exportData()" title="تصدير البيانات">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                تصدير
+            </button>
+            <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:12px" onclick="importData()" title="استيراد البيانات">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                استيراد
+            </button>
+        </div>
+        <div class="vault-status" onclick="connectVault()" id="vault-status-btn" title="ربط Obsidian Vault (ديسكتوب فقط)">
+            <div class="vault-dot" id="vault-dot"></div>
+            <span class="vault-label" id="vault-label">ربط الفولت</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-faint);flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </div>
+        <p style="margin-top:10px">Raymark © 2026</p>
+    </div>
+</aside>
+
+<!-- ── Vault Overlay ─────────────────────────────────────────── -->
+<div class="vault-overlay hidden" id="vault-overlay">
+    <div class="vault-connect-box">
+        <div class="vault-connect-icon">
+            <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+        </div>
+        <h2>ربط مجلد الفولت</h2>
+        <p>اختر مجلد Obsidian vault الخاص بك حتى تُحفظ بياناتك في ملف <strong style="color:var(--gold)">raymark-data.json</strong> ويتزامن تلقائياً عبر Obsidian Sync على كل أجهزتك.</p>
+        <button class="btn btn-gold" style="width:100%;justify-content:center;padding:14px" onclick="connectVault()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            اختر مجلد الفولت
+        </button>
+        <p class="hint">سيطلب منك المتصفح الإذن لقراءة وكتابة الملفات — اضغط "السماح"</p>
+    </div>
+</div>
+
+<!-- ── Main ─────────────────────────────────────────────────── -->
+<main class="main">
+
+    <!-- Dashboard -->
+    <div id="dashboard-page" class="page active">
+        <div class="page-header">
+            <div>
+                <div class="page-title">مرحباً، أنس 👋</div>
+                <div class="page-sub">نظرة عامة على Raymark</div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div class="stat-label">العملاء النشطون</div>
+                <div class="stat-value" id="stat-clients">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div class="stat-label">الإيراد الشهري</div>
+                <div class="stat-value" id="stat-revenue">0 <span class="stat-unit">ر.س</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="stat-label">المهام المعلقة</div>
+                <div class="stat-value" id="stat-tasks">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </div>
+                <div class="stat-label">تجديدات هذا الأسبوع</div>
+                <div class="stat-value" id="stat-renewals">0</div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-card-header">
+                <h3>آخر العملاء</h3>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>العميل</th><th>الخدمة</th><th>السعر</th><th>الحالة</th></tr>
+                </thead>
+                <tbody id="dashboard-clients-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Clients -->
+    <div id="clients-page" class="page">
+        <div class="page-header">
+            <div>
+                <div class="page-title">العملاء</div>
+                <div class="page-sub">إدارة جميع عملائك</div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;">
+                <div class="search-wrap">
+                    <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-input" placeholder="بحث عن عميل..." oninput="renderClients(this.value)">
+                </div>
+                <button class="btn btn-gold" onclick="openClientModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    إضافة عميل
+                </button>
+            </div>
+        </div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr><th>الاسم</th><th>الخدمة</th><th>السعر</th><th>الحالة</th><th>التجديد</th><th>واتساب</th><th>إجراءات</th></tr>
+                </thead>
+                <tbody id="clients-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tasks -->
+    <div id="tasks-page" class="page">
+        <div class="page-header">
+            <div>
+                <div class="page-title">المهام</div>
+                <div class="page-sub">تتبع مهامك لكل عميل</div>
+            </div>
+            <button class="btn btn-gold" onclick="openTaskModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                إضافة مهمة
+            </button>
+        </div>
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr><th>المهمة</th><th>العميل</th><th>الحالة</th><th>تاريخ الاستحقاق</th><th>إجراءات</th></tr>
+                </thead>
+                <tbody id="tasks-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Invoices -->
+    <div id="invoices-page" class="page">
+        <div class="page-header">
+            <div>
+                <div class="page-title">الفواتير</div>
+                <div class="page-sub">إنشاء وإدارة الفواتير</div>
+            </div>
+            <button class="btn btn-gold" onclick="openInvoiceModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                فاتورة جديدة
+            </button>
+        </div>
+        <div id="invoice-list-view">
+            <div class="table-card">
+                <table>
+                    <thead>
+                        <tr><th>رقم الفاتورة</th><th>العميل</th><th>الخدمة</th><th>المبلغ</th><th>التاريخ</th><th>إجراءات</th></tr>
+                    </thead>
+                    <tbody id="invoices-table"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="invoice-preview-view" style="display:none;">
+            <div style="margin-bottom:20px;display:flex;gap:10px;">
+                <button class="btn btn-ghost btn-sm" onclick="renderInvoices()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    رجوع
+                </button>
+                <button class="btn btn-gold btn-sm" onclick="window.print()">طباعة الفاتورة</button>
+            </div>
+            <div class="invoice-preview" id="invoice-preview-content"></div>
+        </div>
+    </div>
+
+</main>
+
+<!-- ── Client Modal ──────────────────────────────────────────── -->
+<div class="modal-overlay" id="client-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="client-modal-title">إضافة عميل جديد</h3>
+            <button class="modal-close" onclick="closeModal('client-modal')">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <input type="hidden" id="client-edit-id">
+        <div class="form-row">
+            <div class="form-group">
+                <label>اسم العميل *</label>
+                <input type="text" id="client-name" placeholder="الاسم الكامل">
+            </div>
+            <div class="form-group">
+                <label>رقم الواتساب</label>
+                <input type="text" id="client-whatsapp" placeholder="05xxxxxxxx">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>الخدمة</label>
+                <select id="client-service" onchange="autoFillPrice()">
+                    <option value="إدارة إعلانات" data-price="990">إدارة إعلانات — 990 ر.س</option>
+                    <option value="إدارة سوشيال ميديا" data-price="650">إدارة سوشيال ميديا — 650 ر.س</option>
+                    <option value="تصميم موقع" data-price="1300">تصميم موقع — 1,300 ر.س</option>
+                    <option value="SEO" data-price="450">SEO — 450 ر.س</option>
+                    <option value="محتوى UGC" data-price="">محتوى UGC — مخصص</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>السعر (ر.س) *</label>
+                <input type="number" id="client-price" placeholder="0">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>الحالة</label>
+                <select id="client-status">
+                    <option value="active">نشط</option>
+                    <option value="pending">معلق</option>
+                    <option value="inactive">غير نشط</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>تاريخ التجديد</label>
+                <input type="date" id="client-renewal">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>ملاحظات</label>
+            <textarea id="client-notes" rows="2" placeholder="أي تفاصيل إضافية..."></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('client-modal')">إلغاء</button>
+            <button class="btn btn-gold" onclick="saveClient()">حفظ العميل</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Task Modal ────────────────────────────────────────────── -->
+<div class="modal-overlay" id="task-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="task-modal-title">إضافة مهمة</h3>
+            <button class="modal-close" onclick="closeModal('task-modal')">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <input type="hidden" id="task-edit-id">
+        <div class="form-group">
+            <label>وصف المهمة *</label>
+            <input type="text" id="task-name" placeholder="ماذا تحتاج أن تفعل؟">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>العميل</label>
+                <select id="task-client">
+                    <option value="">— بدون عميل —</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>الحالة</label>
+                <select id="task-status">
+                    <option value="pending">معلقة</option>
+                    <option value="progress">جارية</option>
+                    <option value="done">مكتملة</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>تاريخ الاستحقاق</label>
+            <input type="date" id="task-date">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('task-modal')">إلغاء</button>
+            <button class="btn btn-gold" onclick="saveTask()">حفظ</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Invoice Modal ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="invoice-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>إنشاء فاتورة جديدة</h3>
+            <button class="modal-close" onclick="closeModal('invoice-modal')">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>العميل *</label>
+                <select id="invoice-client" onchange="fillInvoiceFromClient()">
+                    <option value="">اختر عميل</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>التاريخ</label>
+                <input type="date" id="invoice-date">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>الخدمة *</label>
+            <input type="text" id="invoice-service" placeholder="وصف الخدمة">
+        </div>
+        <div class="form-group">
+            <label>المبلغ (ر.س) *</label>
+            <input type="number" id="invoice-amount" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label>ملاحظات</label>
+            <textarea id="invoice-notes" rows="2" placeholder="أي ملاحظات للفاتورة..."></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('invoice-modal')">إلغاء</button>
+            <button class="btn btn-gold" onclick="saveInvoice()">إنشاء الفاتورة</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Toast Container ───────────────────────────────────────── -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+    let clients  = [];
+    let tasks    = [];
+    let invoices = [];
+    let invNum   = 999;
+    let vaultHandle = null;
+
+    const DATA_FILE   = 'raymark-data.json';
+    const LS_KEY      = 'rm_data';
+
+    // ── localStorage helpers ─────────────────────────────────────
+    function lsSave() {
+        localStorage.setItem(LS_KEY, JSON.stringify({ clients, tasks, invoices, invNum }));
+    }
+
+    function lsLoad() {
+        try {
+            const d = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+            if (!d) return;
+            clients  = d.clients  || [];
+            tasks    = d.tasks    || [];
+            invoices = d.invoices || [];
+            invNum   = d.invNum   || 999;
+        } catch {}
+    }
+
+    // ── IndexedDB for vault handle ───────────────────────────────
+    function openHandleDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open('raymark-vault', 1);
+            req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+            req.onsuccess  = e => resolve(e.target.result);
+            req.onerror    = () => reject(req.error);
+        });
+    }
+
+    async function storeHandle(handle) {
+        try {
+            const db = await openHandleDB();
+            return new Promise((res, rej) => {
+                const tx = db.transaction('handles', 'readwrite');
+                tx.objectStore('handles').put(handle, 'vault');
+                tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+            });
+        } catch {}
+    }
+
+    async function retrieveHandle() {
+        try {
+            const db = await openHandleDB();
+            return new Promise(res => {
+                const req = db.transaction('handles','readonly').objectStore('handles').get('vault');
+                req.onsuccess = () => res(req.result || null);
+                req.onerror   = () => res(null);
+            });
+        } catch { return null; }
+    }
+
+    // ── File System API (desktop only) ───────────────────────────
+    async function checkPermission(handle) {
+        try {
+            let p = await handle.queryPermission({ mode: 'readwrite' });
+            if (p === 'granted') return true;
+            p = await handle.requestPermission({ mode: 'readwrite' });
+            return p === 'granted';
+        } catch { return false; }
+    }
+
+    async function readVaultData(handle) {
+        try {
+            const fh   = await handle.getFileHandle(DATA_FILE, { create: true });
+            const file = await fh.getFile();
+            const text = await file.text();
+            return text.trim() ? JSON.parse(text) : null;
+        } catch { return null; }
+    }
+
+    async function writeVaultData() {
+        if (!vaultHandle) return;
+        try {
+            const fh  = await vaultHandle.getFileHandle(DATA_FILE, { create: true });
+            const wr  = await fh.createWritable();
+            await wr.write(JSON.stringify({ clients, tasks, invoices, invNum }, null, 2));
+            await wr.close();
+        } catch (e) { toast('خطأ في حفظ الفولت', 'error'); }
+    }
+
+    // ── persist: always localStorage, optionally vault ───────────
+    async function persist() {
+        lsSave();
+        await writeVaultData();
+    }
+
+    // ── Export / Import ──────────────────────────────────────────
+    function exportData() {
+        const data = JSON.stringify({ clients, tasks, invoices, invNum }, null, 2);
+        const url  = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'raymark-data.json'; a.click();
+        URL.revokeObjectURL(url);
+        toast('تم تصدير البيانات');
+    }
+
+    function importData() {
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = '.json';
+        input.onchange = async e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                const d = JSON.parse(await file.text());
+                clients  = d.clients  || [];
+                tasks    = d.tasks    || [];
+                invoices = d.invoices || [];
+                invNum   = d.invNum   || 999;
+                await persist();
+                updateDashboard();
+                toast('تم استيراد البيانات بنجاح ✓');
+            } catch { toast('الملف غير صالح', 'error'); }
+        };
+        input.click();
+    }
+
+    // ── Vault Connect ────────────────────────────────────────────
+    async function connectVault() {
+        if (!window.showDirectoryPicker) {
+            toast('ربط الفولت يعمل على ديسكتوب Chrome/Edge فقط', 'error');
+            return;
+        }
+        try {
+            const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+            await storeHandle(handle);
+            vaultHandle = handle;
+            // Load vault data (takes priority over localStorage)
+            const data = await readVaultData(handle);
+            if (data) {
+                clients  = data.clients  || [];
+                tasks    = data.tasks    || [];
+                invoices = data.invoices || [];
+                invNum   = data.invNum   || 999;
+                lsSave();
+            } else {
+                // No vault data yet → write localStorage data to vault
+                await writeVaultData();
+            }
+            setVaultStatus(true, handle.name);
+            updateDashboard();
+            toast('تم ربط الفولت: ' + handle.name);
+        } catch (e) {
+            if (e.name !== 'AbortError') toast('لم يتم ربط الفولت', 'error');
+        }
+    }
+
+    function setVaultStatus(connected, name = '') {
+        const dot   = document.getElementById('vault-dot');
+        const label = document.getElementById('vault-label');
+        dot.classList.toggle('connected', connected);
+        label.classList.toggle('connected', connected);
+        label.textContent = connected ? (name || 'مرتبط بالفولت') : 'ربط الفولت';
+    }
+
+    // ── Mobile sidebar ───────────────────────────────────────────
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('open');
+        document.getElementById('sidebar-overlay').classList.toggle('open');
+    }
+
+    function closeSidebar() {
+        document.querySelector('.sidebar').classList.remove('open');
+        document.getElementById('sidebar-overlay').classList.remove('open');
+    }
+
+    // ── Init ─────────────────────────────────────────────────────
+    async function init() {
+        // 1. Load from localStorage (works on all devices)
+        lsLoad();
+        updateDashboard();
+
+        // 2. Try vault (desktop Chrome/Edge only)
+        if (window.showDirectoryPicker) {
+            const handle = await retrieveHandle();
+            if (handle) {
+                const ok = await checkPermission(handle);
+                if (ok) {
+                    vaultHandle = handle;
+                    const data  = await readVaultData(handle);
+                    if (data) {
+                        clients  = data.clients  || [];
+                        tasks    = data.tasks    || [];
+                        invoices = data.invoices || [];
+                        invNum   = data.invNum   || 999;
+                        lsSave();
+                        updateDashboard();
+                    }
+                    setVaultStatus(true, handle.name);
+                }
+            }
+        }
+    }
+
+    // Toast
+    function toast(msg, type = 'success') {
+        const c = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.innerHTML = `<div class="toast-dot"></div><span>${msg}</span>`;
+        c.appendChild(el);
+        setTimeout(() => el.remove(), 3200);
+    }
+
+    // ── Navigation ──────────────────────────────────────────────
+    function navigate(page, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(page + '-page').classList.add('active');
+        el.classList.add('active');
+        if (page === 'dashboard') updateDashboard();
+        if (page === 'clients')   renderClients();
+        if (page === 'tasks')     renderTasks();
+        if (page === 'invoices')  renderInvoices();
+    }
+
+    // ── Dashboard ───────────────────────────────────────────────
+    function updateDashboard() {
+        const active = clients.filter(c => c.status === 'active');
+        document.getElementById('stat-clients').textContent  = active.length;
+        const rev = active.reduce((s,c) => s + (+c.price||0), 0);
+        document.getElementById('stat-revenue').innerHTML    = rev.toLocaleString() + ' <span class="stat-unit">ر.س</span>';
+        document.getElementById('stat-tasks').textContent    = tasks.filter(t => t.status === 'pending').length;
+
+        const now = new Date();
+        const soon = clients.filter(c => {
+            if (!c.renewal) return false;
+            const d = (new Date(c.renewal) - now) / 86400000;
+            return d >= 0 && d <= 7;
+        }).length;
+        document.getElementById('stat-renewals').textContent = soon;
+
+        const tbody = document.getElementById('dashboard-clients-table');
+        if (!clients.length) {
+            tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">
+                <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+                <p>لا يوجد عملاء بعد</p></div></td></tr>`;
+            return;
+        }
+        tbody.innerHTML = clients.slice(-5).reverse().map(c => `
+            <tr>
+                <td><strong style="color:#fff">${c.name}</strong>${c.notes ? `<br><small style="color:var(--text-faint);font-size:12px;">${c.notes}</small>` : ''}</td>
+                <td style="color:var(--text-dim)">${c.service}</td>
+                <td style="font-weight:700;color:var(--gold)">${(+c.price).toLocaleString()} ر.س</td>
+                <td><span class="badge badge-${c.status}">${sLabel(c.status)}</span></td>
+            </tr>`).join('');
+    }
+
+    const sLabel  = s => ({active:'نشط', pending:'معلق', inactive:'غير نشط'}[s] || s);
+    const tsLabel = s => ({pending:'معلقة', progress:'جارية', done:'مكتملة'}[s] || s);
+
+    // ── Clients ─────────────────────────────────────────────────
+    function openClientModal(id = null) {
+        const isEdit = !!id;
+        document.getElementById('client-modal-title').textContent = isEdit ? 'تعديل بيانات العميل' : 'إضافة عميل جديد';
+        document.getElementById('client-edit-id').value = id || '';
+
+        if (isEdit) {
+            const c = clients.find(x => x.id === id);
+            document.getElementById('client-name').value     = c.name;
+            document.getElementById('client-whatsapp').value = c.whatsapp;
+            document.getElementById('client-service').value  = c.service;
+            document.getElementById('client-price').value    = c.price;
+            document.getElementById('client-status').value   = c.status;
+            document.getElementById('client-renewal').value  = c.renewal;
+            document.getElementById('client-notes').value    = c.notes;
+        } else {
+            ['client-name','client-whatsapp','client-price','client-renewal','client-notes']
+                .forEach(id => document.getElementById(id).value = '');
+            document.getElementById('client-status').value  = 'active';
+            document.getElementById('client-service').value = 'إدارة إعلانات';
+            autoFillPrice();
+        }
+        document.getElementById('client-modal').classList.add('open');
+    }
+
+    function autoFillPrice() {
+        const sel = document.getElementById('client-service');
+        const price = sel.options[sel.selectedIndex].dataset.price;
+        if (price) document.getElementById('client-price').value = price;
+    }
+
+    async function saveClient() {
+        const name = document.getElementById('client-name').value.trim();
+        if (!name) return toast('الرجاء إدخال اسم العميل', 'error');
+        const id = document.getElementById('client-edit-id').value;
+        const obj = {
+            id:       id || Date.now().toString(),
+            name,
+            whatsapp: document.getElementById('client-whatsapp').value.trim(),
+            service:  document.getElementById('client-service').value,
+            price:    document.getElementById('client-price').value,
+            status:   document.getElementById('client-status').value,
+            renewal:  document.getElementById('client-renewal').value,
+            notes:    document.getElementById('client-notes').value.trim(),
+        };
+        clients = id ? clients.map(c => c.id === id ? obj : c) : [...clients, obj];
+        await persist();
+        closeModal('client-modal');
+        renderClients();
+        updateDashboard();
+        toast(id ? 'تم تحديث بيانات العميل' : 'تمت إضافة العميل بنجاح');
+    }
+
+    async function deleteClient(id) {
+        if (!confirm('حذف هذا العميل نهائياً؟')) return;
+        clients = clients.filter(c => c.id !== id);
+        await persist();
+        renderClients();
+        updateDashboard();
+        toast('تم حذف العميل', 'error');
+    }
+
+    function renderClients(filter = '') {
+        const tbody = document.getElementById('clients-table');
+        const list  = filter ? clients.filter(c => c.name.includes(filter) || c.service.includes(filter)) : clients;
+        if (!list.length) {
+            tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+                <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+                <p>${filter ? 'لا توجد نتائج للبحث' : 'لا يوجد عملاء. أضف أول عميل!'}</p></div></td></tr>`;
+            return;
+        }
+        tbody.innerHTML = list.map(c => {
+            const wa = c.whatsapp
+                ? `<a class="wa-link" href="https://wa.me/966${c.whatsapp.replace(/^0/,'')}" target="_blank">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    ${c.whatsapp}</a>`
+                : '<span style="color:var(--text-faint)">—</span>';
+            return `<tr>
+                <td><strong style="color:#fff">${c.name}</strong>${c.notes ? `<br><small style="color:var(--text-faint);font-size:12px;">${c.notes}</small>` : ''}</td>
+                <td style="color:var(--text-dim)">${c.service}</td>
+                <td style="font-weight:700;color:var(--gold)">${(+c.price||0).toLocaleString()} ر.س</td>
+                <td><span class="badge badge-${c.status}">${sLabel(c.status)}</span></td>
+                <td style="color:var(--text-dim)">${c.renewal || '—'}</td>
+                <td>${wa}</td>
+                <td style="white-space:nowrap;">
+                    <button class="btn btn-ghost btn-sm" style="margin-left:6px" onclick="openClientModal('${c.id}')">تعديل</button>
+                    <button class="btn btn-danger-soft btn-sm" onclick="deleteClient('${c.id}')">حذف</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Tasks ────────────────────────────────────────────────────
+    function openTaskModal(id = null) {
+        const sel = document.getElementById('task-client');
+        sel.innerHTML = '<option value="">— بدون عميل —</option>' +
+            clients.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+
+        document.getElementById('task-modal-title').textContent = id ? 'تعديل المهمة' : 'إضافة مهمة';
+        document.getElementById('task-edit-id').value = id || '';
+
+        if (id) {
+            const t = tasks.find(x => x.id === id);
+            document.getElementById('task-name').value   = t.name;
+            document.getElementById('task-client').value = t.client;
+            document.getElementById('task-status').value = t.status;
+            document.getElementById('task-date').value   = t.date;
+        } else {
+            document.getElementById('task-name').value   = '';
+            document.getElementById('task-status').value = 'pending';
+            document.getElementById('task-date').value   = '';
+        }
+        document.getElementById('task-modal').classList.add('open');
+    }
+
+    async function saveTask() {
+        const name = document.getElementById('task-name').value.trim();
+        if (!name) return toast('الرجاء إدخال وصف المهمة', 'error');
+        const id = document.getElementById('task-edit-id').value;
+        const obj = {
+            id:     id || Date.now().toString(),
+            name,
+            client: document.getElementById('task-client').value,
+            status: document.getElementById('task-status').value,
+            date:   document.getElementById('task-date').value,
+        };
+        tasks = id ? tasks.map(t => t.id === id ? obj : t) : [...tasks, obj];
+        await persist();
+        closeModal('task-modal');
+        renderTasks();
+        updateDashboard();
+        toast(id ? 'تم تحديث المهمة' : 'تمت إضافة المهمة');
+    }
+
+    async function deleteTask(id) {
+        if (!confirm('حذف هذه المهمة؟')) return;
+        tasks = tasks.filter(t => t.id !== id);
+        await persist();
+        renderTasks();
+        updateDashboard();
+        toast('تم حذف المهمة', 'error');
+    }
+
+    function renderTasks() {
+        const tbody = document.getElementById('tasks-table');
+        if (!tasks.length) {
+            tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+                <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+                <p>لا توجد مهام. أضف أول مهمة!</p></div></td></tr>`;
+            return;
+        }
+        tbody.innerHTML = tasks.map(t => {
+            const statusClass = t.status === 'done' ? 'done' : t.status === 'progress' ? 'progress' : 'pending';
+            return `<tr>
+                <td style="color:#fff;font-weight:500">${t.name}</td>
+                <td style="color:var(--text-dim)">${t.client || '—'}</td>
+                <td><span class="badge badge-${statusClass}">${tsLabel(t.status)}</span></td>
+                <td style="color:var(--text-dim)">${t.date || '—'}</td>
+                <td style="white-space:nowrap;">
+                    <button class="btn btn-ghost btn-sm" style="margin-left:6px" onclick="openTaskModal('${t.id}')">تعديل</button>
+                    <button class="btn btn-danger-soft btn-sm" onclick="deleteTask('${t.id}')">حذف</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Invoices ─────────────────────────────────────────────────
+    function openInvoiceModal() {
+        const sel = document.getElementById('invoice-client');
+        sel.innerHTML = '<option value="">اختر عميل</option>' +
+            clients.map(c => `<option value="${c.name}" data-service="${c.service}" data-price="${c.price}">${c.name}</option>`).join('');
+        document.getElementById('invoice-date').value    = new Date().toISOString().split('T')[0];
+        document.getElementById('invoice-service').value = '';
+        document.getElementById('invoice-amount').value  = '';
+        document.getElementById('invoice-notes').value   = '';
+        document.getElementById('invoice-modal').classList.add('open');
+    }
+
+    function fillInvoiceFromClient() {
+        const sel = document.getElementById('invoice-client');
+        const opt = sel.options[sel.selectedIndex];
+        if (opt.dataset.service) {
+            document.getElementById('invoice-service').value = opt.dataset.service;
+            document.getElementById('invoice-amount').value  = opt.dataset.price;
+        }
+    }
+
+    async function saveInvoice() {
+        const client  = document.getElementById('invoice-client').value;
+        const service = document.getElementById('invoice-service').value.trim();
+        const amount  = document.getElementById('invoice-amount').value;
+        if (!client || !amount) return toast('الرجاء اختيار العميل وإدخال المبلغ', 'error');
+        invNum++;
+        invoices.push({
+            id:      Date.now().toString(),
+            number:  invNum,
+            client,  service,  amount,
+            date:    document.getElementById('invoice-date').value,
+            notes:   document.getElementById('invoice-notes').value.trim(),
+        });
+        await persist();
+        closeModal('invoice-modal');
+        renderInvoices();
+        toast('تم إنشاء الفاتورة بنجاح');
+    }
+
+    function renderInvoices() {
+        document.getElementById('invoice-list-view').style.display    = 'block';
+        document.getElementById('invoice-preview-view').style.display = 'none';
+        const tbody = document.getElementById('invoices-table');
+        if (!invoices.length) {
+            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+                <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div>
+                <p>لا توجد فواتير بعد.</p></div></td></tr>`;
+            return;
+        }
+        tbody.innerHTML = invoices.slice().reverse().map(inv => `
+            <tr>
+                <td style="color:var(--gold);font-weight:700">#${inv.number}</td>
+                <td style="color:#fff;font-weight:500">${inv.client}</td>
+                <td style="color:var(--text-dim)">${inv.service}</td>
+                <td style="color:var(--gold);font-weight:700">${(+inv.amount).toLocaleString()} ر.س</td>
+                <td style="color:var(--text-dim)">${inv.date}</td>
+                <td style="white-space:nowrap;">
+                    <button class="btn btn-ghost btn-sm" style="margin-left:6px" onclick="previewInvoice('${inv.id}')">عرض</button>
+                    <button class="btn btn-danger-soft btn-sm" onclick="deleteInvoice('${inv.id}')">حذف</button>
+                </td>
+            </tr>`).join('');
+    }
+
+    function previewInvoice(id) {
+        const inv = invoices.find(i => i.id === id);
+        document.getElementById('invoice-list-view').style.display    = 'none';
+        document.getElementById('invoice-preview-view').style.display = 'block';
+        document.getElementById('invoice-preview-content').innerHTML = `
+            <div class="invoice-header">
+                <div class="invoice-logo">
+                    Ray<span>mark</span>
+                    <p>وكالة التسويق الرقمي</p>
+                </div>
+                <div class="invoice-meta">
+                    <div><strong>فاتورة رقم:</strong> #${inv.number}</div>
+                    <div><strong>التاريخ:</strong> ${inv.date}</div>
+                </div>
+            </div>
+            <p style="font-size:12px;color:var(--text-dim);margin-bottom:6px;letter-spacing:0.5px;text-transform:uppercase;">صادرة إلى</p>
+            <p style="font-size:20px;font-weight:800;color:#fff;margin-bottom:32px;">${inv.client}</p>
+            <table class="invoice-table">
+                <thead><tr><th style="text-align:right">الخدمة</th><th style="text-align:left">المبلغ</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td>${inv.service || '—'}</td>
+                        <td style="text-align:left;color:var(--gold);font-weight:700">${(+inv.amount).toLocaleString()} ر.س</td>
+                    </tr>
+                </tbody>
+            </table>
+            ${inv.notes ? `<p style="margin-top:16px;font-size:13px;color:var(--text-dim);">ملاحظات: ${inv.notes}</p>` : ''}
+            <div class="invoice-total">
+                <span>الإجمالي</span>
+                <span>${(+inv.amount).toLocaleString()} ر.س</span>
+            </div>
+            <div class="invoice-footer">شكراً لثقتكم — Raymark</div>
+        `;
+    }
+
+    async function deleteInvoice(id) {
+        if (!confirm('حذف هذه الفاتورة؟')) return;
+        invoices = invoices.filter(i => i.id !== id);
+        await persist();
+        renderInvoices();
+        toast('تم حذف الفاتورة', 'error');
+    }
+
+    // ── Modals ───────────────────────────────────────────────────
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+    }
+
+    document.querySelectorAll('.modal-overlay').forEach(o =>
+        o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); })
+    );
+
+    // ── Init ─────────────────────────────────────────────────────
+    init();
+</script>
+</body>
+</html>
