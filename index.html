@@ -33,7 +33,7 @@
             --transition:  0.22s cubic-bezier(0.4,0,0.2,1);
         }
 
-        html { font-size: 15px; }
+        html { font-size: 15px; overflow-x: hidden; }
 
         body {
             font-family: 'Tajawal', sans-serif;
@@ -777,6 +777,13 @@
             .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
             .stat-value { font-size: 22px; }
         }
+
+        /* ── Mobile table: scroll horizontally ───────────────── */
+        @media (max-width: 768px) {
+            .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            /* Hide less important columns on mobile */
+            .col-hide-mobile { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -946,7 +953,7 @@
         <div class="table-card">
             <table>
                 <thead>
-                    <tr><th>الاسم</th><th>الخدمة</th><th>السعر</th><th>الحالة</th><th>التجديد</th><th>واتساب</th><th>إجراءات</th></tr>
+                    <tr><th>الاسم</th><th>الخدمة</th><th>السعر</th><th>الحالة</th><th class="col-hide-mobile">التجديد</th><th class="col-hide-mobile">واتساب</th><th>إجراءات</th></tr>
                 </thead>
                 <tbody id="clients-table"></tbody>
             </table>
@@ -1444,8 +1451,8 @@
                 <td style="color:var(--text-dim)">${c.service}</td>
                 <td style="font-weight:700;color:var(--gold)">${(+c.price||0).toLocaleString()} ر.س</td>
                 <td><span class="badge badge-${c.status}">${sLabel(c.status)}</span></td>
-                <td style="color:var(--text-dim)">${c.renewal || '—'}</td>
-                <td>${wa}</td>
+                <td class="col-hide-mobile" style="color:var(--text-dim)">${c.renewal || '—'}</td>
+                <td class="col-hide-mobile">${wa}</td>
                 <td style="white-space:nowrap;">
                     <button class="btn btn-ghost btn-sm" style="margin-left:6px" onclick="openClientModal('${c.id}')">تعديل</button>
                     <button class="btn btn-danger-soft btn-sm" onclick="deleteClient('${c.id}')">حذف</button>
