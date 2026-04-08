@@ -828,10 +828,10 @@
                 استيراد
             </button>
         </div>
-        <div class="vault-status" onclick="connectVault()" id="vault-status-btn" title="ربط Obsidian Vault (ديسكتوب فقط)">
+        <div class="vault-status" id="vault-status-btn" style="cursor:default">
             <div class="vault-dot" id="vault-dot"></div>
-            <span class="vault-label" id="vault-label">ربط الفولت</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-faint);flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span class="vault-label" id="vault-label">جاري الاتصال...</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-faint);flex-shrink:0"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
         </div>
         <p style="margin-top:10px">Raymark © 2026</p>
     </div>
@@ -1145,12 +1145,11 @@
     let tasks    = [];
     let invoices = [];
     let invNum   = 999;
-    let vaultHandle = null;
 
-    const DATA_FILE   = 'raymark-data.json';
-    const LS_KEY      = 'rm_data';
+    const DB_URL  = 'https://raymrk-d3ac8-default-rtdb.europe-west1.firebasedatabase.app/data.json';
+    const LS_KEY  = 'rm_data';
 
-    // ── localStorage helpers ─────────────────────────────────────
+    // ── localStorage cache ───────────────────────────────────────
     function lsSave() {
         localStorage.setItem(LS_KEY, JSON.stringify({ clients, tasks, invoices, invNum }));
     }
@@ -1158,79 +1157,57 @@
     function lsLoad() {
         try {
             const d = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
-            if (!d) return;
+            if (!d) return false;
             clients  = d.clients  || [];
             tasks    = d.tasks    || [];
             invoices = d.invoices || [];
             invNum   = d.invNum   || 999;
-        } catch {}
-    }
-
-    // ── IndexedDB for vault handle ───────────────────────────────
-    function openHandleDB() {
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open('raymark-vault', 1);
-            req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
-            req.onsuccess  = e => resolve(e.target.result);
-            req.onerror    = () => reject(req.error);
-        });
-    }
-
-    async function storeHandle(handle) {
-        try {
-            const db = await openHandleDB();
-            return new Promise((res, rej) => {
-                const tx = db.transaction('handles', 'readwrite');
-                tx.objectStore('handles').put(handle, 'vault');
-                tx.oncomplete = res; tx.onerror = () => rej(tx.error);
-            });
-        } catch {}
-    }
-
-    async function retrieveHandle() {
-        try {
-            const db = await openHandleDB();
-            return new Promise(res => {
-                const req = db.transaction('handles','readonly').objectStore('handles').get('vault');
-                req.onsuccess = () => res(req.result || null);
-                req.onerror   = () => res(null);
-            });
-        } catch { return null; }
-    }
-
-    // ── File System API (desktop only) ───────────────────────────
-    async function checkPermission(handle) {
-        try {
-            let p = await handle.queryPermission({ mode: 'readwrite' });
-            if (p === 'granted') return true;
-            p = await handle.requestPermission({ mode: 'readwrite' });
-            return p === 'granted';
+            return true;
         } catch { return false; }
     }
 
-    async function readVaultData(handle) {
+    // ── Firebase REST ────────────────────────────────────────────
+    async function fbRead() {
         try {
-            const fh   = await handle.getFileHandle(DATA_FILE, { create: true });
-            const file = await fh.getFile();
-            const text = await file.text();
-            return text.trim() ? JSON.parse(text) : null;
+            const res = await fetch(DB_URL);
+            if (!res.ok) return null;
+            return await res.json();
         } catch { return null; }
     }
 
-    async function writeVaultData() {
-        if (!vaultHandle) return;
+    async function fbWrite(data) {
         try {
-            const fh  = await vaultHandle.getFileHandle(DATA_FILE, { create: true });
-            const wr  = await fh.createWritable();
-            await wr.write(JSON.stringify({ clients, tasks, invoices, invNum }, null, 2));
-            await wr.close();
-        } catch (e) { toast('خطأ في حفظ الفولت', 'error'); }
+            const res = await fetch(DB_URL, {
+                method:  'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(data)
+            });
+            return res.ok;
+        } catch { return false; }
     }
 
-    // ── persist: always localStorage, optionally vault ───────────
+    // ── persist: Firebase + localStorage cache ───────────────────
     async function persist() {
+        const data = { clients, tasks, invoices, invNum };
         lsSave();
-        await writeVaultData();
+        const ok = await fbWrite(data);
+        setSyncStatus(ok ? 'synced' : 'error');
+    }
+
+    // ── Sync status indicator ────────────────────────────────────
+    function setSyncStatus(state) {
+        const dot   = document.getElementById('vault-dot');
+        const label = document.getElementById('vault-label');
+        const states = {
+            syncing: { cls: '',          text: 'جاري المزامنة...' },
+            synced:  { cls: 'connected', text: 'متزامن مع السحابة' },
+            offline: { cls: '',          text: 'وضع بلا إنترنت' },
+            error:   { cls: '',          text: 'خطأ في المزامنة' },
+        };
+        const s = states[state] || states.synced;
+        dot.className  = 'vault-dot' + (s.cls ? ' ' + s.cls : '');
+        label.className = 'vault-label' + (s.cls ? ' ' + s.cls : '');
+        label.textContent = s.text;
     }
 
     // ── Export / Import ──────────────────────────────────────────
@@ -1263,42 +1240,9 @@
         input.click();
     }
 
-    // ── Vault Connect ────────────────────────────────────────────
-    async function connectVault() {
-        if (!window.showDirectoryPicker) {
-            toast('ربط الفولت يعمل على ديسكتوب Chrome/Edge فقط', 'error');
-            return;
-        }
-        try {
-            const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-            await storeHandle(handle);
-            vaultHandle = handle;
-            // Load vault data (takes priority over localStorage)
-            const data = await readVaultData(handle);
-            if (data) {
-                clients  = data.clients  || [];
-                tasks    = data.tasks    || [];
-                invoices = data.invoices || [];
-                invNum   = data.invNum   || 999;
-                lsSave();
-            } else {
-                // No vault data yet → write localStorage data to vault
-                await writeVaultData();
-            }
-            setVaultStatus(true, handle.name);
-            updateDashboard();
-            toast('تم ربط الفولت: ' + handle.name);
-        } catch (e) {
-            if (e.name !== 'AbortError') toast('لم يتم ربط الفولت', 'error');
-        }
-    }
-
-    function setVaultStatus(connected, name = '') {
-        const dot   = document.getElementById('vault-dot');
-        const label = document.getElementById('vault-label');
-        dot.classList.toggle('connected', connected);
-        label.classList.toggle('connected', connected);
-        label.textContent = connected ? (name || 'مرتبط بالفولت') : 'ربط الفولت';
+    // لا يزال متاحاً في الـ HTML لكن لا نحتاجه بعد الآن
+    function connectVault() {
+        toast('البيانات الآن تُحفظ تلقائياً في السحابة ☁️');
     }
 
     // ── Mobile sidebar ───────────────────────────────────────────
@@ -1314,29 +1258,31 @@
 
     // ── Init ─────────────────────────────────────────────────────
     async function init() {
-        // 1. Load from localStorage (works on all devices)
+        setSyncStatus('syncing');
+
+        // 1. عرض البيانات المحفوظة محلياً فوراً (سرعة)
         lsLoad();
         updateDashboard();
 
-        // 2. Try vault (desktop Chrome/Edge only)
-        if (window.showDirectoryPicker) {
-            const handle = await retrieveHandle();
-            if (handle) {
-                const ok = await checkPermission(handle);
-                if (ok) {
-                    vaultHandle = handle;
-                    const data  = await readVaultData(handle);
-                    if (data) {
-                        clients  = data.clients  || [];
-                        tasks    = data.tasks    || [];
-                        invoices = data.invoices || [];
-                        invNum   = data.invNum   || 999;
-                        lsSave();
-                        updateDashboard();
-                    }
-                    setVaultStatus(true, handle.name);
-                }
+        // 2. جلب أحدث بيانات من Firebase
+        const data = await fbRead();
+        if (data && typeof data === 'object' && (data.clients || data.tasks || data.invoices)) {
+            clients  = data.clients  || [];
+            tasks    = data.tasks    || [];
+            invoices = data.invoices || [];
+            invNum   = data.invNum   || 999;
+            lsSave();
+            updateDashboard();
+            setSyncStatus('synced');
+        } else if (data === null) {
+            // لا إنترنت — نستخدم الكاش
+            setSyncStatus('offline');
+        } else {
+            // Firebase فارغة — ارفع البيانات المحلية إن وجدت
+            if (clients.length || tasks.length || invoices.length) {
+                await fbWrite({ clients, tasks, invoices, invNum });
             }
+            setSyncStatus('synced');
         }
     }
 
