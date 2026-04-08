@@ -1308,7 +1308,7 @@
         if (page === 'clients')   renderClients();
         if (page === 'tasks')     renderTasks();
         if (page === 'invoices')  renderInvoices();
-        closeSidebar();
+        if (window.innerWidth <= 768) closeSidebar();
     }
 
     // ── Dashboard ───────────────────────────────────────────────
