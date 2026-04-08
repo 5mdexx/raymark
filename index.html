@@ -1170,9 +1170,10 @@
     async function fbRead() {
         try {
             const res = await fetch(DB_URL);
-            if (!res.ok) return null;
-            return await res.json();
-        } catch { return null; }
+            if (!res.ok) return { error: true };
+            const data = await res.json();
+            return { ok: true, data };
+        } catch { return { error: true }; }
     }
 
     async function fbWrite(data) {
@@ -1265,18 +1266,19 @@
         updateDashboard();
 
         // 2. جلب أحدث بيانات من Firebase
-        const data = await fbRead();
-        if (data && typeof data === 'object' && (data.clients || data.tasks || data.invoices)) {
-            clients  = data.clients  || [];
-            tasks    = data.tasks    || [];
-            invoices = data.invoices || [];
-            invNum   = data.invNum   || 999;
+        const result = await fbRead();
+        if (result.error) {
+            // فشل الاتصال — نستخدم الكاش
+            setSyncStatus('offline');
+        } else if (result.data && (result.data.clients || result.data.tasks || result.data.invoices)) {
+            // في بيانات في Firebase — حمّلها
+            clients  = result.data.clients  || [];
+            tasks    = result.data.tasks    || [];
+            invoices = result.data.invoices || [];
+            invNum   = result.data.invNum   || 999;
             lsSave();
             updateDashboard();
             setSyncStatus('synced');
-        } else if (data === null) {
-            // لا إنترنت — نستخدم الكاش
-            setSyncStatus('offline');
         } else {
             // Firebase فارغة — ارفع البيانات المحلية إن وجدت
             if (clients.length || tasks.length || invoices.length) {
