@@ -756,10 +756,17 @@
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .main { margin-right: 0; padding: 20px 16px; padding-top: 72px; }
             .sidebar {
-                right: calc(-1 * var(--sidebar-w));
-                transition: right 0.28s ease-in-out;
+                right: 0;
+                visibility: hidden;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.22s ease, visibility 0.22s ease;
             }
-            .sidebar.open { right: 0; }
+            .sidebar.open {
+                visibility: visible;
+                opacity: 1;
+                pointer-events: auto;
+            }
             .page-header { flex-direction: column; gap: 14px; align-items: flex-start; }
             .search-input { width: 160px; }
             th, td { padding: 10px 12px; font-size: 13px; }
